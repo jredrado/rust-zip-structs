@@ -2,9 +2,15 @@ use super::zip_eocd::ZipEOCD;
 use super::zip_error::ZipReadError;
 use super::zip_local_file_header::ZipLocalFileHeader;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use bytesize::ByteSize;
-use std::io::prelude::*;
-use std::io::SeekFrom;
+use core2::io::SeekFrom;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::format;
+use core2::io::Read;
+use alloc::string::ToString;
+
+#[cfg(not(feature = "std"))]
+use crate::read_ext::ReadExt;
 
 /// Magic number of central directory
 const CD_MAGIC: [u8; 4] = [0x50, 0x4b, 0x1, 0x2];
@@ -126,7 +132,7 @@ impl ZipCDEntry {
     ///
     /// # Arguments
     /// * `read` - `Read` object (must be at the next to the signature)
-    fn read_from_eocd_next_signature<T: ReadBytesExt + std::io::Seek>(
+    fn read_from_eocd_next_signature<T: ReadBytesExt + core2::io::Seek>(
         &mut self,
         read: &mut T,
     ) -> Result<(), ZipReadError> {
@@ -234,7 +240,7 @@ impl ZipCDEntry {
     /// # Arguments
     ///
     /// * `write` - file handler
-    pub fn write<T: WriteBytesExt>(&self, write: &mut T) -> std::io::Result<u64> {
+    pub fn write<T: WriteBytesExt>(&self, write: &mut T) -> core2::io::Result<u64> {
         write.write_all(&CD_MAGIC)?;
         write.write_u16::<LE>(self.version_made_by)?;
         write.write_u16::<LE>(self.version_required_to_extract)?;
@@ -265,7 +271,7 @@ impl ZipCDEntry {
     /// # Arguments
     ///
     /// * `read` - file handler (must be at the head of the signature)
-    pub fn read_and_generate_from_signature<T: ReadBytesExt + std::io::Seek>(
+    pub fn read_and_generate_from_signature<T: ReadBytesExt + core2::io::Seek>(
         read: &mut T,
     ) -> Result<Self, ZipReadError> {
         let mut signature_candidate: [u8; 4] = [0; 4];
@@ -289,7 +295,7 @@ impl ZipCDEntry {
     ///
     /// * `read` - file handler
     /// * `eocd` - EOCD object
-    pub fn all_from_eocd<T: ReadBytesExt + std::io::Seek>(
+    pub fn all_from_eocd<T: ReadBytesExt + core2::io::Seek>(
         mut read: &mut T,
         eocd: &ZipEOCD,
     ) -> Result<Vec<Self>, ZipReadError> {
@@ -301,7 +307,7 @@ impl ZipCDEntry {
         let end_pos = read.seek(SeekFrom::Current(0))?;
         if end_pos != eocd.starting_position_with_signature {
             return Err(ZipReadError::UnsupportedZipArchive {
-                reason: format!("there are extra data ({}) between central directory and end of central directory", ByteSize::b(eocd.starting_position_with_signature - end_pos))
+                reason: format!("there are extra data ({}) between central directory and end of central directory", eocd.starting_position_with_signature - end_pos)
             });
         }
         return Ok(result);

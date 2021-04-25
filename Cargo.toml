@@ -12,13 +12,20 @@ keywords = ["zip", "archive"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
-byteorder = "1.4.2"
-thiserror = "1.0.24"
-bytesize = "1.0.1"
-regex = "1"
+[lib]
+crate-type = ["cdylib","lib"]
 
-[dev-dependencies]
-anyhow = "1.0.38"
-vfs = "0.5.0"
-rusty-hook = "0.11.2"
+[dependencies]
+
+byteorder = {git = "https://github.com/jredrado/byteorder.git", default-features=false, branch="update-to-core2", package="byteorder_bare-io"}
+core2 = { git = "https://github.com/bbqsrc/core2", branch = "main", default-features=false, features=["alloc"]}
+
+authallocator = {path ="../urschain/src/authallocator", version = "0.1.0", optional = true}
+
+compression = {version="0.1.5", default-features=false,features=["deflate"]}
+
+[features]
+default = ["allocator"]
+allocator = ["authallocator"]
+
+

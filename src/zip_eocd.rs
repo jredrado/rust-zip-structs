@@ -1,7 +1,15 @@
 use super::zip_error::ZipReadError;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::io::prelude::*;
-use std::io::SeekFrom;
+
+use core2::io::Read;
+use core2::io::SeekFrom;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::format;
+use alloc::string::ToString;
+
+#[cfg(not(feature = "std"))]
+use crate::read_ext::ReadExt;
 
 /// magick number of EOCD
 const EOCD_MAGIC: [u8; 4] = [0x50, 0x4b, 0x5, 0x6];
@@ -51,10 +59,10 @@ impl ZipEOCD {
     ///
     /// * `read` - マジックナンバーの直後を指している`Read`オブジェクト
     /// * `pos` - マジックナンバーの直後のファイル位置 (デフォルト: 0)
-    fn from_reader_next_to_signature<T: ReadBytesExt + std::io::Seek>(
+    fn from_reader_next_to_signature<T: ReadBytesExt + core2::io::Seek>(
         &mut self,
         read: &mut T,
-    ) -> Result<bool, std::io::Error> {
+    ) -> Result<bool, core2::io::Error> {
         self.starting_position_without_signature = read.seek(SeekFrom::Current(0))?;
         self.starting_position_with_signature =
             self.starting_position_without_signature - EOCD_MAGIC.len() as u64;
@@ -101,7 +109,7 @@ impl ZipEOCD {
     /// # Errors
     ///
     /// Returns an error if writing fails.
-    pub fn write<T: WriteBytesExt>(&self, write: &mut T) -> std::io::Result<()> {
+    pub fn write<T: WriteBytesExt>(&self, write: &mut T) -> core2::io::Result<()> {
         write.write_all(&EOCD_MAGIC)?;
         write.write_u16::<LE>(self.eocd_disk_index)?;
         write.write_u16::<LE>(self.cd_start_disk_index)?;
@@ -114,7 +122,7 @@ impl ZipEOCD {
         return Ok(());
     }
 
-    pub fn from_reader<T: ReadBytesExt + std::io::Seek>(
+    pub fn from_reader<T: ReadBytesExt + core2::io::Seek>(
         read: &mut T,
     ) -> Result<ZipEOCD, ZipReadError> {
         let mut eocd = ZipEOCD::empty();
@@ -124,7 +132,7 @@ impl ZipEOCD {
         let zip_eocd_left_bound_pos = zip_size
             .checked_sub(
                 (u16::MAX as u64)
-                    + (std::mem::size_of::<ZipEOCD>() as u64)
+                    + (core::mem::size_of::<ZipEOCD>() as u64)
                     + (EOCD_MAGIC.len() as u64),
             )
             .unwrap_or(0);

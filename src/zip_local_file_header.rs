@@ -1,9 +1,17 @@
 use super::zip_central_directory::{ZipCDEntry, DATA_DESCRIPTOR_EXISTS_FLAG_BIT, UTF8_FLAG_BIT};
 use super::zip_error::ZipReadError;
 use byteorder::{ReadBytesExt, WriteBytesExt, LE};
-use std::borrow::Cow;
-use std::io::prelude::*;
-use std::io::SeekFrom;
+
+use alloc::borrow::Cow;
+use core2::io::SeekFrom;
+use alloc::vec;
+use alloc::vec::Vec;
+use alloc::format;
+
+use core2::io::Read;
+
+#[cfg(not(feature = "std"))]
+use crate::read_ext::ReadExt;
 
 /// magick number of local file header
 const LOCAL_FILE_MAGIC: [u8; 4] = [0x50, 0x4b, 0x3, 0x4];
@@ -37,7 +45,7 @@ impl ZipDataDescriptor {
         result.uncompressed_size = read.read_u32::<LE>()?;
         return Ok(result);
     }
-    fn write<T: WriteBytesExt>(&self, write: &mut T) -> std::io::Result<u64> {
+    fn write<T: WriteBytesExt>(&self, write: &mut T) -> core2::io::Result<u64> {
         write.write_u32::<LE>(self.crc32)?;
         write.write_u32::<LE>(self.compressed_size)?;
         write.write_u32::<LE>(self.uncompressed_size)?;
@@ -130,7 +138,7 @@ impl ZipLocalFileHeader<'_> {
     ///
     /// # Arguments
     /// * `read` - `Read` object (must be at the next to the signature)
-    fn read_without_signature<T: ReadBytesExt + std::io::Seek>(
+    fn read_without_signature<T: ReadBytesExt + core2::io::Seek>(
         &mut self,
         read: &mut T,
     ) -> Result<(), ZipReadError> {
@@ -217,7 +225,7 @@ impl ZipLocalFileHeader<'_> {
     /// # Arguments
     ///
     /// * `read` - file handler (must be at the start of the signature)
-    pub fn read_and_generate_from_signature<T: ReadBytesExt + std::io::Seek>(
+    pub fn read_and_generate_from_signature<T: ReadBytesExt + core2::io::Seek>(
         read: &mut T,
     ) -> Result<Self, ZipReadError> {
         let mut signature_candidate: [u8; 4] = [0; 4];
@@ -241,7 +249,7 @@ impl ZipLocalFileHeader<'_> {
     /// # Arguments
     ///
     /// * `read` - file handler (must be at the head of the signature)
-    pub fn from_central_directory<T: ReadBytesExt + std::io::Seek>(
+    pub fn from_central_directory<T: ReadBytesExt + core2::io::Seek>(
         read: &mut T,
         cd: &ZipCDEntry,
     ) -> Result<Self, ZipReadError> {
@@ -255,7 +263,7 @@ impl ZipLocalFileHeader<'_> {
     /// # Arguments
     ///
     /// * `write` - file handler
-    pub fn write<T: WriteBytesExt>(&self, write: &mut T) -> std::io::Result<u64> {
+    pub fn write<T: WriteBytesExt>(&self, write: &mut T) -> core2::io::Result<u64> {
         let mut bytes_written = 30
             + self.file_name_length as u64
             + self.extra_field_length as u64
